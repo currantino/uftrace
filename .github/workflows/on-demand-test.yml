@@ -23,7 +23,7 @@ on:
 
 jobs:
   run-uftrace-tests:
-    if: github.repository == 'namhyung/uftrace'
+    if: github.repository == 'currantino/uftrace'
     runs-on: ubuntu-latest
     steps:
       - name: "checkout"
@@ -48,3 +48,29 @@ jobs:
 
       - name: "run tests"
         run: make test -j1 DEBUG=1 TESTARG="${{ inputs.args }}" UNITTESTARG="${{ inputs.unit_args }}" RUNTESTARG="${{ inputs.run_args }}" PYTESTARG="${{ inputs.python_args }}"
+
+      - name: "install coverity scan dependencies"
+        run: sudo apt-get install -y curl tar gzip
+
+      - name: "download coverity scan tool"
+        run: |
+          curl -L -o coverity_tool.tgz https://scan.coverity.com/download/linux64
+          tar -xzf coverity_tool.tgz
+          mv cov-analysis-linux64-* cov-analysis
+
+      - name: "run coverity build"
+        run: |
+          cov-analysis/bin/cov-build --dir cov-int make DEBUG=1
+
+      - name: "upload coverity results"
+        env:
+          COVERITY_TOKEN: ${{ secrets.COVERITY_TOKEN }}
+          COVERITY_EMAIL: ${{ secrets.COVERITY_EMAIL }}
+        run: |
+          tar -czf cov-int.tgz cov-int
+          curl --form token=$COVERITY_TOKEN \
+               --form email=$COVERITY_EMAIL \
+               --form file=@cov-int.tgz \
+               --form version="${{ github.sha }}" \
+               --form description="Nightly Coverity Scan" \
+               https://scan.coverity.com/builds

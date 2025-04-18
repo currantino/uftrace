@@ -32,3 +32,4 @@ jobs:
 
       - name: "run tests"
         run: make test -j1 TESTARG='--color on' RUNTESTARG='--quiet'
+
